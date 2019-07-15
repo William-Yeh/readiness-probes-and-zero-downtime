@@ -1,0 +1,37 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  labels:
+    app: hello
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello
+  #strategy:
+  #  rollingUpdate:
+  #    maxSurge: 1
+  #    maxUnavailable: 1
+  #  type: RollingUpdate
+
+  template:   # pod definition
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+        - name: hello
+          image: hello-v1
+          imagePullPolicy: IfNotPresent
+          args: ["5"]
+          ports:
+            - containerPort: 80
+#          readinessProbe:
+#            httpGet:
+#              path: /health
+#              port: 80
+            #initialDelaySeconds: 20
+            #periodSeconds: 10
