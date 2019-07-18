@@ -143,7 +143,7 @@ done</code></pre>
 <p>For brevity, next sections will only demonstrate the load testing scenario with the <code>loadtest.sh</code> script.</p>
 <h3 is-upgraded><strong>Kubernetes service IP</strong></h3>
 <p>By default, services and ingress in this lab are accessible on <code>localhost</code>. You&#39;ll be fine with the <code>localhost</code> if the Kubernetes cluster you&#39;re using for this lab is on Linux (e.g., on public clouds), or is provided by Docker Desktop, Community Edition on Windows/macOS. </p>
-<p>If you&#39;re using Minikube, please replace <code>localhost</code> with your <code>minikube ip</code> value.</p>
+<p>If you&#39;re using Minikube, please replace <code>localhost</code> with your real <code>minikube ip</code> value.</p>
 <h2 is-upgraded><strong>The &#34;Hello&#34; app</strong></h2>
 <p>The &#34;<code>hello</code>&#34; is a simple backend app written in Go.</p>
 <p>It first takes a few seconds to initialize itself (can be overridden with command-line argument); after that, it exports 2 endpoints:</p>
@@ -267,7 +267,9 @@ spec:
 4:       000
 5:       000
 ^C</code></pre>
-<p>As shown in the output, non-200 results are all printed in the 2nd column.</p>
+<p>Since no pod is started for now, all result are non-200 and are printed in the 2nd column.</p>
+<aside class="special"><p><strong>TIP:</strong> For Minikube users, your Kubernetes applications are not directly accessible on <code>localhost</code>. You&#39;ll need to put something like <code>$(minikube ip)</code> as the 1st command-line argument.</p>
+</aside>
 <p>If you&#39;re using Linux-like toolchain (including macOS and WSL), you can now move to Pane B, and see the Kubernetes logs for <code>app=hello</code> continuously:</p>
 <pre><code>$ watch -d -n 1  kubectl logs --tail=10  -l app=hello</code></pre>
 <p>Now it&#39;s time to move to Pane C and do something interesting. Please invoke the <code>service/hello</code> together with <code>deployment/hello</code>:</p>
@@ -387,7 +389,9 @@ spec:
 4:       000
 5:       000
 ^C</code></pre>
-<p>As shown in the output, non-200 results are all printed in the 2nd column.</p>
+<p>Since no pod is started for now, all result are non-200 and are printed in the 2nd column.</p>
+<aside class="special"><p><strong>TIP:</strong> For Minikube users,  your Kubernetes applications are not directly accessible on <code>localhost</code>.. You&#39;ll need to put something like <code>$(minikube ip)</code> as the 1st command-line argument.</p>
+</aside>
 <p>If you&#39;re using Linux-like toolchain (including macOS and WSL), you can now move to Pane B, and see the Kubernetes logs for <code>app=hello</code> continuously:</p>
 <pre><code>$ watch -d -n 1  kubectl logs --tail=10  -l app=hello</code></pre>
 <p>Now it&#39;s time to move to Pane C and do something interesting. Please invoke the <code>service/hello</code> together with <code>deployment/hello-v1</code>:</p>
@@ -541,6 +545,8 @@ Connection: keep-alive
 
 OK                      </code></pre>
 <p>Before moving on, make sure that basic setting of ingress, service, deployments are ok.</p>
+<aside class="special"><p><strong>TIP:</strong> For Minikube users, your Kubernetes applications are not directly accessible on <code>localhost</code>. You&#39;ll need to put something like <code>$(minikube ip)</code> as the command-line argument.</p>
+</aside>
 <h2 is-upgraded><strong>Is ingress free from zero downtime?</strong></h2>
 <p>Based on previous experiments, you&#39;re ready to load testing the ingress and see if there&#39;s any observable downtime.</p>
 <h3 is-upgraded><strong>Scale out</strong></h3>
