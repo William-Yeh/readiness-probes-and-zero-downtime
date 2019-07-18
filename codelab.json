@@ -1,0 +1,27 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2019-07-18T02:39:25Z",
+  "id": "readiness-probes-and-zero-downtime",
+  "duration": 43,
+  "title": "Readiness Probes and Zero Downtime",
+  "authors": "William Yeh",
+  "summary": "In this codelab, you'll learn how readiness probes affect the zero downtime behavior in Kubernetes.",
+  "source": "14in2IPZYFbX0-k07UWsU8N9umKvV0VRekV527vkhIIs",
+  "theme": "cloud",
+  "status": [
+    "draft"
+  ],
+  "category": [
+    "Cloud"
+  ],
+  "tags": [
+    "ckad",
+    "kiosk",
+    "web"
+  ],
+  "feedback": "https://github.com/William-Yeh/readiness-probes-and-zero-downtime/issues",
+  "url": "readiness-probes-and-zero-downtime"
+}

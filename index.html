@@ -1,0 +1,613 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Readiness Probes and Zero Downtime</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="readiness-probes-and-zero-downtime"
+                  title="Readiness Probes and Zero Downtime"
+                  environment="web"
+                  feedback-link="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/issues">
+    
+      <google-codelab-step label="Introduction" duration="0">
+        <p><strong>Last Updated:</strong> 2019-07-18</p>
+<h2 is-upgraded><strong>Why are readiness probes important?</strong></h2>
+<p>In official Kubernetes documentation, readiness probes are defined as:</p>
+<p>&#34;The kubelet uses readiness probes to know when a Container is ready to start accepting traffic. A Pod is considered ready when all of its Containers are ready. One use of this signal is to control which Pods are used as backends for Services. When a Pod is not ready, it is removed from Service load balancers.&#34; --- <a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/" target="_blank">Configure Liveness and Readiness Probes</a></p>
+<p>The topic of readiness probes is also covered in the <strong>Observability</strong> part (18%) of <a href="https://www.cncf.io/certification/ckad/" target="_blank">CKAD (Certified Kubernetes Application Developer)</a>.</p>
+<p>However, application developers new to Kubernetes usually neglect the importance of readiness probes and have hard time troubleshooting when dealing with scaling, canary release, and ingress.</p>
+<p>This codelab provides a simplified real-world example for you to practice the effectiveness of readiness probes.</p>
+<h2 is-upgraded><strong>What you&#39;ll build</strong></h2>
+<p>In this codelab, you&#39;re going to build 2 versions of a simple backend application written in Go. Your app will have these Kubernetes constructs:</p>
+<ul>
+<li>Deployment</li>
+<li>Service</li>
+<li>Ingress</li>
+</ul>
+<p>You&#39;ll also use a simple load testing script to test the application.</p>
+<h2 class="checklist" is-upgraded><strong>What you&#39;ll learn</strong></h2>
+<ul class="checklist">
+<li>How to perform basic load testing for Kubernetes applications and ingress controllers to identify potential weak points</li>
+<li>How to provide readiness probes for your Kubernetes applications</li>
+<li>How to make your simple stateless application scalable with nearly zero downtime</li>
+</ul>
+<p>This codelab is focused on readiness probes. Non-relevant concepts and code blocks are glossed over and are provided for you to simply copy and paste.</p>
+<h2 is-upgraded><strong>What you&#39;ll need</strong></h2>
+<ul>
+<li>A recent version of Docker (18.09.2 or later)</li>
+<li>A recent version of Kubernetes (1.10.11 or later)</li>
+<li>Basic knowledge of Docker images and containers</li>
+<li>Basic knowledge of Kubernetes pods, deployments, and services.</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Getting set up" duration="3">
+        <h2 is-upgraded><strong>Get the code</strong></h2>
+<p>We&#39;ve put everything you need for this project into a Git repo. To get started, you&#39;ll need to grab the code and open it in your favorite dev environment.</p>
+<h3 is-upgraded><strong>Strongly Recommended: Import the repo</strong></h3>
+<p>Using git is the recommended method for working through this lab.</p>
+<ol type="1" start="1">
+<li>Open a terminal window and change to a working directory for this lab.</li>
+<li>Clone the repo: <code>git clone https://github.com/William-Yeh/readiness-probes-and-zero-downtime.git</code></li>
+<li>Change to the lab directory: <code>cd readiness-probes-and-zero-downtime</code></li>
+</ol>
+<p class="image-container"><img style="width: 624.00px" src="img/dbd3fb96964f17e3.png"></p>
+<h3 is-upgraded><strong>Alternative: Download the zip file</strong></h3>
+<p>If you&#39;re not familiar with git, you may download the zip file and unpack the code locally.</p>
+<aside class="warning"><p><strong>Caution:</strong> If you choose to work with the zip file, you lose the benefits provided by git, especially the ability to track difference between original code and your modification.</p>
+</aside>
+<p><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/archive/master.zip" target="_blank"><paper-button class="colored" raised><iron-icon icon="cloud_download"></iron-icon>Download source code</paper-button></a></p>
+<ol type="1" start="1">
+<li>Unpack the downloaded zip file.</li>
+<li>Open a terminal window and change to the lab directory.  </li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Know about the apps and test script" duration="5">
+        <h2 is-upgraded><strong>What&#39;s our starting point?</strong></h2>
+<p>Our starting point is a basic backend app <code>hello</code> and a simple load testing script <code>loadtest.sh</code> designed for this codelab. The code has been overly simplified to show the concepts in this codelab, and it has little error handling. If you choose to reuse any of this code in a production app, make sure that you handle any errors and fully test all code.</p>
+<h2 is-upgraded><strong>Load testing script</strong></h2>
+<p>In this lab we&#39;ll simply use curl as the load tester. You may specify the target URL under test as the 1st argument and the delay (in seconds) per request loop as the 2nd argument. When the script receives HTTP status code 200, the string <code>200</code> will be printed in the 1st column; otherwise, other values will be printed in the 2nd column for clarity.</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/loadtest/loadtest.sh" target="_blank">loadtest.sh</a></h3>
+<pre><code>#!/bin/bash
+#
+# Ping for specified HTTP(S) endpoint continuously and display the status code.
+#
+
+TARGET=${1:-http://localhost:30000/}
+DELAY_SECONDS=${2:-0.1}
+i=0
+
+while :
+do
+    status=`curl --max-time 2 -o /dev/null -sw &#39;%{http_code}&#39; $TARGET`
+    if [ $status == &#34;200&#34; ]
+    then
+        echo &#34;$i:&#34; $status
+    else
+        echo &#34;$i:      &#34; $status
+    fi
+
+    sleep $DELAY_SECONDS
+    let &#34;i++&#34;
+done</code></pre>
+<h3 is-upgraded><strong>Strongly Recommended: Linux-like toolchain</strong></h3>
+<p>Using the bash script directly is the recommended method for working through this lab, especially for Linux, macOS, or WSL (Windows Subsystem for Linux) users.</p>
+<p>Let&#39;s use the <code>loadtest.sh</code> script to test some public services such as httpbin.org:</p>
+<pre><code>$ loadtest/loadtest.sh  http://httpbin.org
+0: 200
+1: 200
+2: 200
+3: 200
+4: 200
+5: 200
+6: 200
+7: 200
+^C</code></pre>
+<p>All the 200 results are printed in the 1st column.</p>
+<h3 is-upgraded><strong>Alternative: Wrap the script in Docker</strong></h3>
+<p>If you have trouble using the script directly, a Docker version is also provided. First, you&#39;ll need to build the <code>loadtest</code> image:</p>
+<pre><code>C:&gt; docker build -t loadtest -f loadtest/Dockerfile loadtest</code></pre>
+<p>Now, you can use the <code>loadtest</code> image to test some public services such as httpbin.org:</p>
+<pre><code>C:&gt; docker run -it --rm loadtest  http://httpbin.org
+0: 200
+1: 200
+2: 200
+3: 200
+4: 200
+5: 200
+6: 200
+7: 200
+^C</code></pre>
+<p>For brevity, next sections will only demonstrate the load testing scenario with the <code>loadtest.sh</code> script.</p>
+<h2 is-upgraded><strong>The &#34;Hello&#34; app</strong></h2>
+<p>The &#34;<code>hello</code>&#34; is a simple backend app written in Go.</p>
+<p>It first takes a few seconds to initialize itself (can be overridden with command-line argument); after that, it exports 2 endpoints:</p>
+<ul>
+<li><code>/health</code>: Print &#34;OK&#34; with status code <code>200</code>.</li>
+<li>Others: Print &#34;Hello world!&#34; for app <code>v1</code>, and &#34;HELLO WORLD!&#34; for <code>v2</code>.</li>
+</ul>
+<p><code>V1</code> &amp; <code>v2</code> only differ in the output. For brevity, only the <code>v1</code> code snippet is listed as follows.</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/v1/hello.go#L11-L29" target="_blank">v1/hello.go</a></h3>
+<pre><code>func main() {
+        if len(os.Args) &gt; 1 {
+                if delay, err := strconv.Atoi(os.Args[1]); err == nil {
+                        fmt.Printf(&#34;Taking %d seconds to initialize... &#34;, delay)
+                        time.Sleep(time.Duration(delay) * time.Second)
+                        fmt.Println(&#34;Done.&#34;)
+                }
+        }
+
+        http.HandleFunc(&#34;/&#34;, func (w http.ResponseWriter, r *http.Request) {
+                fmt.Fprintf(w, &#34;Hello world!&#34;)
+        })
+
+        http.HandleFunc(&#34;/health&#34;, func (w http.ResponseWriter, r *http.Request) {
+                fmt.Fprintf(w, &#34;OK&#34;)
+        })
+
+        http.ListenAndServe(&#34;:80&#34;, nil)
+}</code></pre>
+<p>Let&#39;s build image for <code>hello-v1</code>:</p>
+<pre><code>$ docker build -t hello-v1 -f v1/Dockerfile  v1</code></pre>
+<p>Can you see the generated image?</p>
+<pre><code>$ docker images
+REPOSITORY     TAG        IMAGE ID        CREATED               SIZE
+hello-v1       latest     367aeaf2efd2    About a minute ago    12.9MB
+...</code></pre>
+<p>Now, let&#39;s invoke the <code>hello-v1</code> app, and tell it to initialize itself for 5 seconds:</p>
+<pre><code>$ docker run -t --rm -p 30000:80  hello-v1  5
+Taking 5 seconds to initialize... Done.
+...</code></pre>
+<p>Then, let&#39;s open another terminal to visit its service endpoints:</p>
+<pre><code>$ curl localhost:30000
+Hello world!
+
+$ curl localhost:30000/health
+OK</code></pre>
+<h2 is-upgraded><strong>It&#39;s your turn!</strong></h2>
+<p>The <code>hello-v2</code> app is quite similar, and is left to you as exercise.</p>
+<p>Please do the following:</p>
+<ol type="1" start="1">
+<li>Build the Docker image <code>hello-v2</code></li>
+<li>Invoke the <code>hello-v2</code> app, and visit its endpoints.</li>
+</ol>
+<aside class="warning"><p><strong>Caution:</strong> Do not skip this exercise since the <code>hello-v2</code> is to be used later in this lab.</p>
+</aside>
+<h2 is-upgraded><strong>What&#39;s next?</strong></h2>
+<p>You&#39;ve played with the hello app (<code>hello-v1</code> &amp; <code>hello-v2</code>) and the load testing script. Now it&#39;s time for Kubernetes!</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Experiment I: Scale out" duration="10">
+        <p>Kubernetes is famous for its application scalability. By the end of this section, you&#39;ll know how careless application design can lose the benefits of Kubernetes, and how readiness probes can help with this.</p>
+<p>To get a more complete and dynamic view of this experiment (and the next experiment as well), it is recommended that you arrange your terminal windows or panes as follows:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/8ab18c6966fc80d9.png"></p>
+<ul>
+<li>Pane A: for load testing.</li>
+<li>Pane B: for logs.</li>
+<li>Pane C: for kubectl commands.</li>
+</ul>
+<h2 is-upgraded><strong>Manifest files</strong></h2>
+<p>Initially, the <code>deployment/hello</code> has 1 pod instance of the <code>hello-v1</code> image. The <code>args: [&#34;5&#34;]</code> line is to force the application to spend 5 seconds to initialize itself:</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-deployment.yml" target="_blank">hello-deployment.yml</a></h3>
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  labels:
+    app: hello
+
+spec:
+  replicas: 1
+  ...
+
+  template:   # pod definition
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+        - name: hello
+          image: hello-v1
+          args: [&#34;5&#34;]
+  ...</code></pre>
+<p>The <code>service/hello</code> exposes its service on TCP port 30000:</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-service.yml" target="_blank">hello-service.yml</a></h3>
+<pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  labels:
+    app: hello
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      nodePort: 30000
+  selector:
+    app: hello</code></pre>
+<h2 is-upgraded><strong>Scale out, without readiness probes</strong></h2>
+<p>First, move to Pane A, and invoke the load testing script:</p>
+<pre><code>$ loadtest/loadtest.sh
+0:       000
+1:       000
+2:       000
+3:       000
+4:       000
+5:       000
+^C</code></pre>
+<p>As shown in the output, non-200 results are all printed in the 2nd column.</p>
+<p>If you&#39;re using Linux-like toolchain (including macOS and WSL), you can now move to Pane B, and see the Kubernetes logs for <code>app=hello</code> continuously:</p>
+<pre><code>$ watch -d -n 1  kubectl logs --tail=10  -l app=hello</code></pre>
+<p>Now it&#39;s time to move to Pane C and do something interesting. Please invoke the <code>service/hello</code> together with <code>deployment/hello</code>:</p>
+<pre><code>$ kubectl apply -f hello-service.yml
+service/hello created
+$
+$ kubectl apply -f hello-deployment.yml
+deployment.apps/hello created
+$</code></pre>
+<p>Wait a few seconds for the service to warm up, and you&#39;ll see all the 200 results printed in the 1st column:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/1161c912ea00cfbb.png"></p>
+<p>Ready?  Let&#39;s scale out the <code>deployment/hello</code> and see what happens.</p>
+<pre><code>$ kubectl scale deployment/hello --replicas=2</code></pre>
+<p>It is obvious from the view of load tester (Pane A) that there&#39;s some service downtime during the scale out interval: </p>
+<p class="image-container"><img style="width: 624.00px" src="img/804933fc12e0b9b2.png"></p>
+<p>You&#39;re encouraged to try more <code>replicas</code> numbers to get a feel for the downtime.</p>
+<aside class="special"><p><strong>Note:</strong> This experiment shows that as soon as another instances of the same pod template are created, Kubernetes is eager to feed traffic to them, even when they are not ready yet.  We need a mechanism for pods to tell Kubernetes that &#34;We&#39;re not ready yet&#34; or &#34;We&#39;re ready now&#34;.</p>
+</aside>
+<p>Before moving on, delete the deployment to return to the clean state:</p>
+<pre><code>$ kubectl delete deployment/hello</code></pre>
+<aside class="warning"><p><strong>Caution:</strong> Delete only the deployment. Keep the service running.</p>
+</aside>
+<h2 is-upgraded><strong>Scale out, with readiness probes</strong></h2>
+<p>Time to enable the readiness probes to prevent the downtime.</p>
+<p>First, uncomment the <code>readinessProbe</code> region of <code>hello-deployment.yml</code>:</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-deployment.yml" target="_blank">hello-deployment.yml</a></h3>
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+...
+
+spec:
+  template:   # pod definition
+    spec:
+      containers:
+        - name: hello
+          image: hello-v1
+          args: [&#34;5&#34;]
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+  ...</code></pre>
+<p>Second, invoke the <code>deployment/hello</code>:</p>
+<pre><code>$ kubectl apply -f hello-deployment.yml
+deployment.apps/hello created
+$</code></pre>
+<p>Wait a few seconds for the service to warm up, until all 200 results are printed in the 1st column.</p>
+<p>Ready?  Let&#39;s scale out the <code>deployment/hello</code> and see what happens now.</p>
+<pre><code>$ kubectl scale deployment/hello --replicas=2</code></pre>
+<p>It is obvious from the view of load tester (Pane A) that there&#39;s no service downtime during the scale out interval: </p>
+<p class="image-container"><img style="width: 624.00px" src="img/9200439ded0a5f78.png"></p>
+<p>You&#39;re encouraged to try more <code>replicas</code> numbers to get a feel for the <em>nearly</em> zero downtime.</p>
+<p>This experiment demonstrates that in order to scale out your stateless application with <em>nearly</em> zero downtime, you should take advantage of readiness probes. </p>
+<aside class="special"><p><strong>Note:</strong> Zero downtime is not possible without readiness probes. However, we do not claim that readiness probes alone can achieve zero downtime.</p>
+</aside>
+<p>Before moving on, delete the deployment to return to the clean state:</p>
+<pre><code>$ kubectl delete deployment/hello</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Experiment II: Canary release" duration="15">
+        <p>Kubernetes is famous for its application support for canary release with proper arrangement of labels. By the end of this section, you&#39;ll know how careless application design can lose the benefits of Kubernetes, and how readiness probes can help with this.</p>
+<p>To get a more complete and dynamic view of this experiment, it is recommended that you keep your terminal windows or panes layout as with the previous experiment:</p>
+<ul>
+<li>Pane A: for load testing.</li>
+<li>Pane B: for logs.</li>
+<li>Pane C: for kubectl commands.</li>
+</ul>
+<h2 is-upgraded><strong>Manifest files</strong></h2>
+<p>The <code>service/hello</code> is the same as the previous experiment. It routes traffic to any deployment with the <code>app=hello</code> label.</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-service.yml" target="_blank">hello-service.yml</a></h3>
+<pre><code>apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  ...
+spec:
+  selector:
+    app: hello
+  ...</code></pre>
+<p>The <code>deployment/hello-v1</code> has 1 pod instance of the <code>hello-v1</code> image. The <code>args: [&#34;5&#34;]</code> line is to force the application to spend 5 seconds to initialize itself:</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/deployment-v1.yml" target="_blank">deployment-v1.yml</a></h3>
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-v1
+  labels:
+    app: hello
+
+spec:
+  replicas: 1
+  ...
+
+  template:   # pod definition
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+        - name: hello
+          image: hello-v1
+          args: [&#34;5&#34;]
+  ...</code></pre>
+<p>The <code>deployment/hello-v2</code> is similar, except that its image is <code>hello-v2</code>.</p>
+<h2 is-upgraded><strong>Canary release, without readiness probes</strong></h2>
+<p>First, move to Pane A, and invoke the load testing script:</p>
+<pre><code>$ loadtest/loadtest.sh
+0:       000
+1:       000
+2:       000
+3:       000
+4:       000
+5:       000
+^C</code></pre>
+<p>As shown in the output, non-200 results are all printed in the 2nd column.</p>
+<p>If you&#39;re using Linux-like toolchain (including macOS and WSL), you can now move to Pane B, and see the Kubernetes logs for <code>app=hello</code> continuously:</p>
+<pre><code>$ watch -d -n 1  kubectl logs --tail=10  -l app=hello</code></pre>
+<p>Now it&#39;s time to move to Pane C and do something interesting. Please invoke the <code>service/hello</code> together with <code>deployment/hello-v1</code>:</p>
+<pre><code>$ kubectl apply -f hello-service.yml
+service/hello unchanged
+$
+$ kubectl apply -f deployment-v1.yml
+deployment.apps/hello-v1 created
+$</code></pre>
+<p>Wait a few seconds for the service to warm up, until all 200 results are printed in the 1st column:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/8f7cb5177535d0bf.png"></p>
+<p>Make sure that it&#39;s <code>v1</code> running behind the scene:</p>
+<pre><code>$ curl localhost:30000
+Hello world!</code></pre>
+<p>Ready?  Let&#39;s invoke the canary release <code>deployment/hello-v2</code> and see what happens.</p>
+<pre><code>$ kubectl apply -f deployment-v2.yml</code></pre>
+<p>It is obvious from the view of load tester (Pane A) that there&#39;s some service downtime during the introduction of canary release <code>deployment/hello-v2</code>: </p>
+<p class="image-container"><img style="width: 624.00px" src="img/95a31bc7cc3eb7ca.png"></p>
+<p>Make sure that both <code>v1</code> &amp; <code>v2</code> are running behind the scene:</p>
+<pre><code>$ kubectl get deployments
+NAME       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+hello-v1   1         1         1            1           6m
+hello-v2   1         1         1            1           3m
+
+$ curl localhost:30000
+Hello world!
+$ curl localhost:30000
+Hello world!
+$ curl localhost:30000
+HELLO WORLD!
+$ curl localhost:30000
+Hello world!
+$ curl localhost:30000
+HELLO WORLD!
+$ curl localhost:30000
+HELLO WORLD!
+$ curl localhost:30000
+Hello world!
+$ curl localhost:30000
+HELLO WORLD!</code></pre>
+<p>You&#39;re encouraged to try more <code>replicas</code> numbers for <code>v2</code> to get a feel for the downtime.</p>
+<aside class="special"><p><strong>Note:</strong> This experiment shows that as soon as pods of the canary deployment are created, Kubernetes is eager to feed traffic to them, even when they are not ready yet.  We need a mechanism for pods of the canary deployment to tell Kubernetes that &#34;We&#39;re not ready yet&#34; or &#34;We&#39;re ready now&#34;.</p>
+</aside>
+<p>In the next section, we&#39;ll add a readiness probe for v2 and see if it helps to avoid the downtime.  Before moving on,  delete the <code>v2</code> deployment to return to the clean state:</p>
+<pre><code>$ kubectl delete deployment/hello-v2</code></pre>
+<aside class="warning"><p><strong>Caution:</strong> Delete only the <code>deployment/hello-v2</code>. Keep the <code>deployment/hello-v1</code> and <code>service/hello</code> running.</p>
+</aside>
+<h2 is-upgraded><strong>Canary release, with readiness probes</strong></h2>
+<p>Time to enable the readiness probes to prevent the downtime.</p>
+<p>It&#39;s your job to add the <code>readinessProbe</code> region of <code>deployment-v2.yml</code>:</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/deployment-v2.yml" target="_blank">deployment-v2.yml</a></h3>
+<pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-v2
+  ...
+
+spec:
+  template:   # pod definition
+    spec:
+      containers:
+        - name: hello
+          image: hello-v2
+          args: [&#34;5&#34;]
+          readinessProbe:
+            # IT&#39;S YOUR TURN TO FILL IN CORRECT SETTING HERE!
+  ...</code></pre>
+<aside class="special"><p><strong>TIP:</strong> If you&#39;re not sure of the syntax or <code>readinessProbe</code>, take a look at <code>hello-deployment.yml</code> in the previous experiment.</p>
+</aside>
+<p>Ready? Let&#39;s invoke the modified <code>deployment/hello-v2</code>, and see what happens now.</p>
+<pre><code>$ kubectl apply -f deployment-v2.yml
+deployment.apps/hello-v2 created
+$</code></pre>
+<p>It is obvious from the view of load tester (Pane A) that there&#39;s no service downtime during the canary release interval:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/a66356405a103e2c.png"></p>
+<p>You&#39;re encouraged to try more <code>replicas</code> numbers for <code>v2</code> to get a feel for the <em>nearly</em> zero downtime.</p>
+<p>This experiment demonstrates that in order to introduce the canary release to your stateless application with <em>nearly</em> zero downtime, you should take advantage of readiness probes. </p>
+<aside class="special"><p><strong>Note:</strong> Zero downtime is not possible without readiness probes. However, we do not claim that readiness probes alone can achieve zero downtime.</p>
+</aside>
+<h2 is-upgraded><strong>It&#39;s your turn!</strong></h2>
+<p>The <code>v2</code> deployment has the readiness probe, and the <code>v1</code> deployment is left to you as exercise.</p>
+<p>Please do the following:</p>
+<ol type="1" start="1">
+<li>Add a readiness probe region to <code>deployment-v1.yml</code> file</li>
+<li>Invoke the modified <code>v1</code> deployment</li>
+<li>Visit the service endpoints.</li>
+</ol>
+<aside class="warning"><p><strong>Caution:</strong> Do not skip this exercise since both correct <code>v1</code> and <code>v2</code> implementations are to be used later in this lab.</p>
+</aside>
+<h2 is-upgraded><strong>What&#39;s next?</strong></h2>
+<p>You&#39;ve got quite a lot of working knowledge of readiness probes. Next you&#39;ll be asked to apply what you&#39;ve learned so far to debug an ingress use case.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Experiment III: Ingress" duration="10">
+        <p>In this experiment you&#39;ll add an ingress in front of the <code>hello</code> service. All manifest files are provided for you; however, there&#39;s a defect in them.  Can you find it, and fix it?</p>
+<aside class="special"><p><strong>TIP:</strong> Be sure that <code>service/hello</code>, <code>deployment/hello-v1</code> and <code>deployment/hello-v2</code> are all alive.</p>
+</aside>
+<h2 is-upgraded><strong>Install the NGINX ingress controller</strong></h2>
+<p>There are a variety of nginx ingress implementations. In this lab we use a simplified version from the <a href="https://github.com/kubernetes/ingress-nginx/" target="_blank">kubernetes/ingress-nginx</a> repository.</p>
+<p>Use the following commands to install the simplified version into the <code>ingress-nginx</code> namespace:</p>
+<pre><code>$ kubectl apply -f ingress/mandatory.yaml
+$ kubectl apply -f ingress/cloud-generic.yaml</code></pre>
+<p>Check if the nginx ingress is installed successfully:</p>
+<pre><code>$ kubectl get all -n ingress-nginx</code></pre>
+<p>You should see something like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/89c554fadb61a359.png"></p>
+<aside class="special"><p><strong>TIP:</strong> For more information, see <a href="https://kubernetes.github.io/ingress-nginx/deploy/" target="_blank">NGINX Ingress Controller Installation Guide</a> maintained by k8s.io..</p>
+</aside>
+<h2 is-upgraded><strong>Set the ingress resource for hello service</strong></h2>
+<p>We want to add a ingress in front of the <code>hello</code> service. For brevity, we only specify a default backend with no rules.</p>
+<h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/ingress/hello-ingress.yml" target="_blank">hello-ingress.yml</a></h3>
+<pre><code>apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: hello-ingress
+spec:
+  backend:
+    serviceName: hello
+    servicePort: 80</code></pre>
+<p>Create the ingress, and you should be able to view the state of the ingress you just added:</p>
+<pre><code>$ kubectl apply -f ingress/hello-ingress.yml
+ingress.extensions/hello-ingress created
+
+$ kubectl get ingress hello-ingress
+NAME            HOSTS   ADDRESS   PORTS   AGE
+hello-ingress   *                 80      8s</code></pre>
+<p>Let&#39;s try to visit the endpoints exposed by the ingress:</p>
+<pre><code>$ curl localhost:80
+HELLO WORLD!
+$ curl localhost:80
+HELLO WORLD!
+$ curl localhost:80
+Hello world!
+$ curl localhost:80
+Hello world!
+$ curl localhost:80
+HELLO WORLD!
+$ curl localhost:80
+Hello world!
+$
+$ curl -i localhost:80/health
+HTTP/1.1 200 OK
+Server: openresty/1.15.8.1
+Date: Wed, 17 Jul 2019 14:36:37 GMT
+Content-Type: text/plain; charset=utf-8
+Content-Length: 2
+Connection: keep-alive
+
+OK                      </code></pre>
+<p>Before moving on, make sure that basic setting of ingress, service, deployments are ok.</p>
+<h2 is-upgraded><strong>Is ingress free from zero downtime?</strong></h2>
+<p>Based on previous experiments, you&#39;re ready to load testing the ingress and see if there&#39;s any observable downtime.</p>
+<h3 is-upgraded><strong>Scale out</strong></h3>
+<p>To get a more complete and dynamic view of this experiment, it is recommended that you keep your terminal windows or panes layout as with the previous experiments:</p>
+<ul>
+<li>Pane A: for load testing.</li>
+<li>Pane B: for logs.</li>
+<li>Pane C: for kubectl commands.</li>
+</ul>
+<p>First, move to Pane A, and invoke the load testing script:</p>
+<pre><code>$ loadtest/loadtest.sh localhost:80
+0: 200
+1: 200
+2: 200
+3: 200
+4: 200
+5: 200
+^C</code></pre>
+<p>As shown in the output, 200 results are all printed in the 1st column.</p>
+<p>If you&#39;re using Linux-like toolchain (including macOS and WSL), you can now move to Pane B, and see the Kubernetes logs for <code>app.kubernetes.io/name=ingress-nginx</code> continuously:</p>
+<pre><code>$ watch -n 1 kubectl logs --tail=10 \
+    -l app.kubernetes.io/name=ingress-nginx -n ingress-nginx</code></pre>
+<p>Ready? It&#39;s time to move to Pane C and do something interesting. </p>
+<p>Let&#39;s scale out the <code>deployment/nginx-ingress-controller</code> and see what happens.</p>
+<pre><code>$ kubectl scale deployment/nginx-ingress-controller \
+    --replicas=2 -n ingress-nginx</code></pre>
+<p>It is obvious from the view of load tester (Pane A) that there&#39;s some service downtime during the scale out interval: </p>
+<p class="image-container"><img style="width: 624.00px" src="img/3c4e1924cd95bfeb.png"></p>
+<p>You&#39;re encouraged to try more <code>replicas</code> numbers to get a feel for the downtime.</p>
+<aside class="special"><p><strong>Note:</strong> This experiment shows that as soon as another instances of the same ingress controller are created, Kubernetes is eager to feed traffic to them, even when they are not ready yet.</p>
+</aside>
+<h2 is-upgraded><strong>It&#39;s your turn!</strong></h2>
+<p>Time to apply what you&#39;ve learned so far to make this ingress nearly zero downtime.</p>
+<p>Please do the following:</p>
+<ol type="1" start="1">
+<li>Look carefully into all manifest files in the <code>ingress</code> directory of this lab.</li>
+<li>Find the defect, and fix it.</li>
+<li>Repeat the load testing to validate your fix.</li>
+</ol>
+<aside class="special"><p><strong>TIP:</strong> You&#39;re encouraged to repeat the same experiment on other ingress or API gateway solutions.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Congratulations" duration="0">
+        <p>Congratulations, you&#39;ve learned a lot of readiness probes through a series of hands-on experiments. </p>
+<p>You deployed a backend service, two versions of deployments, and an ingress for this service. You conducted scaling out, canary release, and load testing on them to reveal the downtime phenomenon. You learned how to use readiness probes to solve the downtime problem.</p>
+<p>You now know the key steps required to turn your stateless app into a <em>nearly</em> zero downtime setting.</p>
+<h2 is-upgraded><strong>What&#39;s next?</strong></h2>
+<p>Check out some of these codelabs...</p>
+<ul>
+<li>Liveness Probes</li>
+<li>Signals, hooks and graceful shutdown </li>
+</ul>
+<h2 is-upgraded><strong>Further reading</strong></h2>
+<ul>
+<li><a href="https://cloud.google.com/blog/products/gcp/kubernetes-best-practices-setting-up-health-checks-with-readiness-and-liveness-probes" target="_blank">Kubernetes best practices: Setting up health checks with readiness and liveness probes</a></li>
+<li><a href="https://www.weave.works/blog/resilient-apps-with-liveness-and-readiness-probes-in-kubernetes" target="_blank">Resilient Apps with Liveness and Readiness Probes in Kubernetes</a></li>
+<li><a href="https://blog.colinbreck.com/kubernetes-liveness-and-readiness-probes-how-to-avoid-shooting-yourself-in-the-foot/" target="_blank">Kubernetes Liveness and Readiness Probes: How to Avoid Shooting Yourself in the Foot</a></li>
+</ul>
+<h2 is-upgraded><strong>Reference docs</strong></h2>
+<ul>
+<li><a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/" target="_blank">Configure Liveness and Readiness Probes</a></li>
+<li><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/" target="_blank">Pod Lifecycle</a></li>
+<li><a href="https://kubernetes.io/docs/concepts/services-networking/ingress/" target="_blank">Concepts: Ingress</a></li>
+<li><a href="https://www.cncf.io/certification/ckad/" target="_blank">CKAD (Certified Kubernetes Application Developer)</a></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>
