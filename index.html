@@ -88,7 +88,7 @@
         <h2 is-upgraded><strong>What&#39;s our starting point?</strong></h2>
 <p>Our starting point is a basic backend app <code>hello</code> and a simple load testing script <code>loadtest.sh</code> designed for this codelab. The code has been overly simplified to show the concepts in this codelab, and it has little error handling. If you choose to reuse any of this code in a production app, make sure that you handle any errors and fully test all code.</p>
 <h2 is-upgraded><strong>Load testing script</strong></h2>
-<p>In this lab we&#39;ll simply use curl as the load tester. You may specify the target URL under test as the 1st argument and the delay (in seconds) per request loop as the 2nd argument. When the script receives HTTP status code 200, the string <code>200</code> will be printed in the 1st column; otherwise, other values will be printed in the 2nd column for clarity.</p>
+<p>In this lab we&#39;ll simply use curl as the core load tester. You may specify the target URL under test as the 1st argument and the delay (in seconds) per request loop as the 2nd argument. When the script receives HTTP status code 200, the string <code>200</code> will be printed in the 1st column; otherwise, other values will be printed in the 2nd column for clarity.</p>
 <h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/loadtest/loadtest.sh" target="_blank">loadtest.sh</a></h3>
 <pre><code>#!/bin/bash
 #
@@ -141,6 +141,9 @@ done</code></pre>
 7: 200
 ^C</code></pre>
 <p>For brevity, next sections will only demonstrate the load testing scenario with the <code>loadtest.sh</code> script.</p>
+<h3 is-upgraded><strong>Kubernetes service IP</strong></h3>
+<p>By default, services and ingress in this lab are accessible on <code>localhost</code>. You&#39;ll be fine with the <code>localhost</code> if the Kubernetes cluster you&#39;re using for this lab is on Linux (e.g., on public clouds), or is provided by Docker Desktop, Community Edition on Windows/macOS. </p>
+<p>If you&#39;re using Minikube, please replace <code>localhost</code> with your <code>minikube ip</code> value.</p>
 <h2 is-upgraded><strong>The &#34;Hello&#34; app</strong></h2>
 <p>The &#34;<code>hello</code>&#34; is a simple backend app written in Go.</p>
 <p>It first takes a few seconds to initialize itself (can be overridden with command-line argument); after that, it exports 2 endpoints:</p>
