@@ -30,11 +30,10 @@
       <google-codelab-step label="Introduction" duration="0">
         <p><strong>Last Updated:</strong> 2019-07-18</p>
 <h2 is-upgraded><strong>Why are readiness probes important?</strong></h2>
-<p>In official Kubernetes documentation, readiness probes are defined as:</p>
-<p>&#34;The kubelet uses readiness probes to know when a Container is ready to start accepting traffic. A Pod is considered ready when all of its Containers are ready. One use of this signal is to control which Pods are used as backends for Services. When a Pod is not ready, it is removed from Service load balancers.&#34; --- <a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/" target="_blank">Configure Liveness and Readiness Probes</a></p>
-<p>The topic of readiness probes is also covered in the <strong>Observability</strong> part (18%) of <a href="https://www.cncf.io/certification/ckad/" target="_blank">CKAD (Certified Kubernetes Application Developer)</a>.</p>
+<p>In official Kubernetes documentation, readiness probes are described as: &#34;The kubelet uses readiness probes to know when a Container is ready to start accepting traffic. A Pod is considered ready when all of its Containers are ready. One use of this signal is to control which Pods are used as backends for Services. When a Pod is not ready, it is removed from Service load balancers.&#34; --- <a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/" target="_blank">Configure Liveness and Readiness Probes</a></p>
+<p>The topic of readiness probes is also covered in the <strong>Observability</strong> part (18%) of <a href="https://www.cncf.io/certification/ckad/" target="_blank">CKAD (Certified Kubernetes Application Developer)</a>: &#34;Understand LivenessProbes and ReadinessProbes&#34;.</p>
 <p>However, application developers new to Kubernetes usually neglect the importance of readiness probes and have hard time troubleshooting when dealing with scaling, canary release, and ingress.</p>
-<p>This codelab provides a simplified real-world example for you to practice the effectiveness of readiness probes.</p>
+<p>This codelab provides a simplified real-world example for you to practice the usefulness of readiness probes.</p>
 <h2 is-upgraded><strong>What you&#39;ll build</strong></h2>
 <p>In this codelab, you&#39;re going to build 2 versions of a simple backend application written in Go. Your app will have these Kubernetes constructs:</p>
 <ul>
@@ -211,7 +210,11 @@ OK</code></pre>
 <li>Pane B: for logs.</li>
 <li>Pane C: for kubectl commands.</li>
 </ul>
-<h2 is-upgraded><strong>Manifest files</strong></h2>
+<h2 is-upgraded><strong>Kubernetes objects</strong></h2>
+<h3 is-upgraded><strong>Architecture</strong></h3>
+<p>In this experiment you&#39;ll play with these Kubernetes objects:</p>
+<p class="image-container"><img style="width: 323.00px" src="img/10fb82b9fcc5bf08.png"></p>
+<h3 is-upgraded><strong>Manifest files</strong></h3>
 <p>Initially, the <code>deployment/hello</code> has 1 pod instance of the <code>hello-v1</code> image. The <code>args: [&#34;5&#34;]</code> line is to force the application to spend 5 seconds to initialize itself:</p>
 <h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-deployment.yml" target="_blank">hello-deployment.yml</a></h3>
 <pre><code>apiVersion: apps/v1
@@ -331,7 +334,11 @@ $</code></pre>
 <li>Pane B: for logs.</li>
 <li>Pane C: for kubectl commands.</li>
 </ul>
-<h2 is-upgraded><strong>Manifest files</strong></h2>
+<h2 is-upgraded><strong>Kubernetes objects</strong></h2>
+<h3 is-upgraded><strong>Architecture</strong></h3>
+<p>In this experiment you&#39;ll play with these Kubernetes objects:</p>
+<p class="image-container"><img style="width: 323.00px" src="img/b02617741068ae5f.png"></p>
+<h3 is-upgraded><strong>Manifest files</strong></h3>
 <p>The <code>service/hello</code> is the same as the previous experiment. It routes traffic to any deployment with the <code>app=hello</code> label.</p>
 <h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-service.yml" target="_blank">hello-service.yml</a></h3>
 <pre><code>apiVersion: v1
@@ -475,6 +482,7 @@ $</code></pre>
     
       <google-codelab-step label="Experiment III: Ingress" duration="10">
         <p>In this experiment you&#39;ll add an ingress in front of the <code>hello</code> service. All manifest files are provided for you; however, there&#39;s a defect in them.  Can you find it, and fix it?</p>
+<p class="image-container"><img style="width: 323.00px" src="img/988338a5bb49a246.png"></p>
 <aside class="special"><p><strong>TIP:</strong> Be sure that <code>service/hello</code>, <code>deployment/hello-v1</code> and <code>deployment/hello-v2</code> are all alive.</p>
 </aside>
 <h2 is-upgraded><strong>Install the NGINX ingress controller</strong></h2>
@@ -571,6 +579,19 @@ OK                      </code></pre>
 </ol>
 <aside class="special"><p><strong>TIP:</strong> You&#39;re encouraged to repeat the same experiment on other ingress or API gateway solutions.</p>
 </aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Clean up" duration="3">
+        <p>It&#39;s time to clean up all services and deployments you&#39;ve created in this codelab.</p>
+<p>For &#34;hello&#34; application:</p>
+<pre><code>$ kubectl delete service/hello
+$ kubectl delete deployment/hello-v1
+$ kubectl delete deployment/hello-v2</code></pre>
+<p>For nginx ingress:</p>
+<pre><code>$ kubectl delete ns ingress-nginx
+$ kubectl delete ingress hello-ingress</code></pre>
 
 
       </google-codelab-step>
