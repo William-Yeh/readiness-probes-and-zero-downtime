@@ -216,7 +216,7 @@ OK</code></pre>
 <h2 is-upgraded><strong>Kubernetes objects</strong></h2>
 <h3 is-upgraded><strong>Architecture</strong></h3>
 <p>In this experiment you&#39;ll play with these Kubernetes objects:</p>
-<p class="image-container"><img style="width: 323.00px" src="img/10fb82b9fcc5bf08.png"></p>
+<p class="image-container"><img style="width: 403.00px" src="img/a7bb4ee58119b093.png"></p>
 <h3 is-upgraded><strong>Manifest files</strong></h3>
 <p>Initially, the <code>deployment/hello</code> has 1 pod instance of the <code>hello-v1</code> image. The <code>args: [&#34;5&#34;]</code> line is to force the application to spend 5 seconds to initialize itself:</p>
 <h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-deployment.yml" target="_blank">hello-deployment.yml</a></h3>
@@ -342,7 +342,7 @@ $</code></pre>
 <h2 is-upgraded><strong>Kubernetes objects</strong></h2>
 <h3 is-upgraded><strong>Architecture</strong></h3>
 <p>In this experiment you&#39;ll play with these Kubernetes objects:</p>
-<p class="image-container"><img style="width: 323.00px" src="img/b02617741068ae5f.png"></p>
+<p class="image-container"><img style="width: 408.00px" src="img/af78e5620482a4d1.png"></p>
 <h3 is-upgraded><strong>Manifest files</strong></h3>
 <p>The <code>service/hello</code> is the same as the previous experiment. It routes traffic to any deployment with the <code>app=hello</code> label.</p>
 <h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/hello-service.yml" target="_blank">hello-service.yml</a></h3>
@@ -489,7 +489,7 @@ $</code></pre>
     
       <google-codelab-step label="Experiment III: Ingress" duration="10">
         <p>In this experiment you&#39;ll add an ingress in front of the <code>hello</code> service. All manifest files are provided for you; however, there&#39;s a defect in them.  Can you find it, and fix it?</p>
-<p class="image-container"><img style="width: 323.00px" src="img/988338a5bb49a246.png"></p>
+<p class="image-container"><img style="width: 408.00px" src="img/bccb8b54233e1fc3.png"></p>
 <aside class="special"><p><strong>TIP:</strong> Be sure that <code>service/hello</code>, <code>deployment/hello-v1</code> and <code>deployment/hello-v2</code> are all alive.</p>
 </aside>
 <h2 is-upgraded><strong>Install the NGINX ingress controller</strong></h2>
