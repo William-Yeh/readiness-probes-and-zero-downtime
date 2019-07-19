@@ -28,7 +28,7 @@
                   feedback-link="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/issues">
     
       <google-codelab-step label="Introduction" duration="0">
-        <p><strong>Last Updated:</strong> 2019-07-18</p>
+        <p><strong>Last Updated:</strong> 2019-07-19</p>
 <h2 is-upgraded><strong>Why are readiness probes important?</strong></h2>
 <p>In official Kubernetes documentation, readiness probes are described as: &#34;The kubelet uses readiness probes to know when a Container is ready to start accepting traffic. A Pod is considered ready when all of its Containers are ready. One use of this signal is to control which Pods are used as backends for Services. When a Pod is not ready, it is removed from Service load balancers.&#34; --- <a href="https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/" target="_blank">Configure Liveness and Readiness Probes</a></p>
 <p>The topic of readiness probes is also covered in the <strong>Observability</strong> part (18%) of <a href="https://www.cncf.io/certification/ckad/" target="_blank">CKAD (Certified Kubernetes Application Developer)</a>: &#34;Understand LivenessProbes and ReadinessProbes&#34;.</p>
@@ -88,7 +88,7 @@
         <h2 is-upgraded><strong>What&#39;s our starting point?</strong></h2>
 <p>Our starting point is a basic backend app <code>hello</code> and a simple load testing script <code>loadtest.sh</code> designed for this codelab. The code has been overly simplified to show the concepts in this codelab, and it has little error handling. If you choose to reuse any of this code in a production app, make sure that you handle any errors and fully test all code.</p>
 <h2 is-upgraded><strong>Load testing script</strong></h2>
-<p>In this lab we&#39;ll simply use curl as the core load tester. You may specify the target URL under test as the 1st argument and the delay (in seconds) per request loop as the 2nd argument. When the script receives HTTP status code 200, the string <code>200</code> will be printed in the 1st column; otherwise, other values will be printed in the 2nd column for clarity.</p>
+<p>In this lab we&#39;ll simply use curl as the core load tester. You may specify the target URL under test as the 1st argument and the delay (in seconds) per request loop as the 2nd argument. When the script receives HTTP status code 200, the string <code>200</code> will be printed in the 1st column; otherwise, non-200 values will be printed in the 2nd column for clarity.</p>
 <h3 is-upgraded><a href="https://github.com/William-Yeh/readiness-probes-and-zero-downtime/blob/master/loadtest/loadtest.sh" target="_blank">loadtest.sh</a></h3>
 <pre><code>#!/bin/bash
 #
@@ -258,7 +258,7 @@ spec:
   selector:
     app: hello</code></pre>
 <h2 is-upgraded><strong>Scale out, without readiness probes</strong></h2>
-<p>First, move to Pane A, and invoke the load testing script:</p>
+<p>First, move to Pane A, invoke the load testing script, and keep it running:</p>
 <pre><code>$ loadtest/loadtest.sh
 0:       000
 1:       000
@@ -266,7 +266,9 @@ spec:
 3:       000
 4:       000
 5:       000
-^C</code></pre>
+.
+.
+.</code></pre>
 <p>Since no pod is started for now, all result are non-200 and are printed in the 2nd column.</p>
 <aside class="special"><p><strong>TIP:</strong> For Minikube users, your Kubernetes applications are not directly accessible on <code>localhost</code>. You&#39;ll need to put something like <code>$(minikube ip)</code> as the 1st command-line argument.</p>
 </aside>
@@ -380,7 +382,7 @@ spec:
   ...</code></pre>
 <p>The <code>deployment/hello-v2</code> is similar, except that its image is <code>hello-v2</code>.</p>
 <h2 is-upgraded><strong>Canary release, without readiness probes</strong></h2>
-<p>First, move to Pane A, and invoke the load testing script:</p>
+<p>First, move to Pane A, invoke the load testing script, and keep it running:</p>
 <pre><code>$ loadtest/loadtest.sh
 0:       000
 1:       000
@@ -388,7 +390,9 @@ spec:
 3:       000
 4:       000
 5:       000
-^C</code></pre>
+.
+.
+.</code></pre>
 <p>Since no pod is started for now, all result are non-200 and are printed in the 2nd column.</p>
 <aside class="special"><p><strong>TIP:</strong> For Minikube users,  your Kubernetes applications are not directly accessible on <code>localhost</code>.. You&#39;ll need to put something like <code>$(minikube ip)</code> as the 1st command-line argument.</p>
 </aside>
@@ -556,7 +560,7 @@ OK                      </code></pre>
 <li>Pane B: for logs.</li>
 <li>Pane C: for kubectl commands.</li>
 </ul>
-<p>First, move to Pane A, and invoke the load testing script:</p>
+<p>First, move to Pane A, invoke the load testing script, and keep it running:</p>
 <pre><code>$ loadtest/loadtest.sh localhost:80
 0: 200
 1: 200
@@ -564,7 +568,9 @@ OK                      </code></pre>
 3: 200
 4: 200
 5: 200
-^C</code></pre>
+.
+.
+.</code></pre>
 <p>As shown in the output, 200 results are all printed in the 1st column.</p>
 <p>If you&#39;re using Linux-like toolchain (including macOS and WSL), you can now move to Pane B, and see the Kubernetes logs for <code>app.kubernetes.io/name=ingress-nginx</code> continuously:</p>
 <pre><code>$ watch -n 1 kubectl logs --tail=10 \
